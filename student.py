@@ -5,7 +5,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 
 # Step 1: Load data
-df = pd.read_csv("C:\\Users\\Shree\\Desktop\\ML CAS STUDENT DROUPOUT PASSOUT\\data.csv", delimiter=';')
+# ✅ Option 1: Load from GitHub (RECOMMENDED for Streamlit Cloud)
+df = pd.read_csv("https://raw.githubusercontent.com/amrutashinde2004/your-repo-name/main/data.csv", delimiter=';')
+
 
 # Step 2: Split X and y
 X = df.drop("Target", axis=1)
