@@ -1,6 +1,6 @@
 streamlit
 pandas
-catboost
+xgboost
 scikit-learn
 matplotlib
 seaborn
