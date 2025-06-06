@@ -1,5 +1,5 @@
 import pandas as pd
-from catboost import catBoostClassifier
+from catboost import catboostClassifier
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
