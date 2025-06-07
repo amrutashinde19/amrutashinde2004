@@ -6,131 +6,128 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pickle
-import os
+import io
 from datetime import datetime
 
-# Initialize session state for metrics
+st.set_page_config(page_title="Student Dropout Predictor", layout="wide")
+
+# Store accuracy history
 if "history" not in st.session_state:
     st.session_state.history = []
 
-st.set_page_config(page_title="Student Dropout Predictor", layout="wide")
 st.title("🎓 Student Dropout Prediction using CatBoost")
 
-# Sidebar options
-option = st.sidebar.radio("Choose Task", [
-    "📂 Upload & Train Model",
-    "🔮 Predict Using Trained Model",
-    "📊 View Accuracy History"
+menu = st.sidebar.radio("Select Task", [
+    "Upload and Train Model",
+    "Predict Dropout",
+    "View Accuracy History"
 ])
 
-# ============ 📂 TRAIN & SAVE MODEL ============
-if option == "📂 Upload & Train Model":
-    uploaded_file = st.file_uploader("Upload your student dataset (.csv)", type=["csv"])
-    
-    if uploaded_file:
-        try:
-            df = pd.read_csv(uploaded_file, delimiter=';')
-            st.success("✅ File uploaded successfully!")
+# ----------------- 1. Upload and Train Model -----------------
+if menu == "Upload and Train Model":
+    data_file = st.file_uploader("Upload student data CSV file", type=["csv"])
 
-            if st.checkbox("Show Data"):
+    if data_file:
+        try:
+            df = pd.read_csv(data_file, delimiter=';')
+            st.success("✅ Data loaded successfully!")
+
+            if st.checkbox("Show Raw Data"):
                 st.dataframe(df.head())
 
             if "Target" not in df.columns:
-                st.error("❌ 'Target' column not found.")
+                st.error("❌ The dataset must include a 'Target' column.")
             else:
                 X = df.drop("Target", axis=1)
                 y = df["Target"]
-                cat_features = X.select_dtypes(include='object').columns.tolist()
+                cat_cols = X.select_dtypes(include='object').columns.tolist()
 
                 X_train, X_test, y_train, y_test = train_test_split(
                     X, y, test_size=0.2, random_state=42, stratify=y
                 )
 
                 model = CatBoostClassifier(
-                    iterations=500,
+                    iterations=300,
                     learning_rate=0.1,
                     depth=6,
-                    cat_features=cat_features,
+                    cat_features=cat_cols,
                     verbose=0
                 )
 
-                with st.spinner("Training model..."):
+                with st.spinner("Training CatBoost model..."):
                     model.fit(X_train, y_train)
-                    y_pred = model.predict(X_test)
 
+                y_pred = model.predict(X_test)
                 acc = accuracy_score(y_test, y_pred)
                 report = classification_report(y_test, y_pred, output_dict=True)
                 cm = confusion_matrix(y_test, y_pred)
 
-                st.subheader("✅ Accuracy:")
-                st.success(f"{acc:.2%}")
+                st.success(f"🎯 Model Accuracy: {acc:.2%}")
                 st.session_state.history.append({
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "accuracy": acc
                 })
 
-                st.subheader("📊 Classification Report:")
+                st.subheader("Classification Report")
                 st.dataframe(pd.DataFrame(report).transpose())
 
-                st.subheader("📌 Confusion Matrix:")
+                st.subheader("Confusion Matrix")
                 fig, ax = plt.subplots()
-                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                            xticklabels=model.classes_, yticklabels=model.classes_)
-                ax.set_xlabel('Predicted')
-                ax.set_ylabel('Actual')
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
                 st.pyplot(fig)
 
-                st.subheader("🔍 Feature Importance:")
-                feature_imp = pd.Series(model.get_feature_importance(), index=X.columns)
+                st.subheader("Feature Importance")
+                feat_imp = pd.Series(model.get_feature_importance(), index=X.columns)
                 fig2, ax2 = plt.subplots()
-                feature_imp.sort_values().plot(kind='barh', ax=ax2)
+                feat_imp.sort_values().plot(kind='barh', ax=ax2)
                 st.pyplot(fig2)
 
-                if st.button("💾 Save Trained Model"):
+                if st.button("Save Trained Model"):
                     with open("student_dropout_model.pkl", "wb") as f:
-                        pickle.dump((model, cat_features, X.columns.tolist()), f)
-                    st.success("✅ Model saved as 'student_dropout_model.pkl'")
+                        pickle.dump((model, cat_cols, list(X.columns)), f)
+                    st.success("💾 Model saved as 'student_dropout_model.pkl'")
 
         except Exception as e:
-            st.error(f"❌ Error: {e}")
+            st.error(f"❌ Error during training: {e}")
 
-# ============ 🔮 PREDICT NEW STUDENT ============
-elif option == "🔮 Predict Using Trained Model":
-    st.info("Upload a saved model to make predictions.")
-    model_file = st.file_uploader("Upload saved model (.pkl)", type=["pkl"])
-    
+# ----------------- 2. Predict Dropout -----------------
+elif menu == "Predict Dropout":
+    model_file = st.file_uploader("Upload your trained model (.pkl)", type=["pkl"])
+
     if model_file:
         try:
-            model, cat_features, feature_cols = pickle.load(model_file)
-            st.success("✅ Model loaded.")
+            loaded = pickle.load(io.BytesIO(model_file.read()))
+            model, cat_cols, feature_cols = loaded
 
-            st.subheader("📥 Enter Student Information:")
+            st.success("✅ Model loaded successfully.")
+            st.subheader("Enter Student Information")
 
-            new_data = {}
+            input_data = {}
             for col in feature_cols:
-                if col in cat_features:
-                    new_data[col] = st.selectbox(f"{col}", ["yes", "no", "maybe", "other"])
+                if col in cat_cols:
+                    input_data[col] = st.selectbox(col, [str(i) for i in range(8)])
                 else:
-                    new_data[col] = st.number_input(f"{col}", format="%f")
+                    input_data[col] = st.number_input(col, step=1.0)
 
-            if st.button("🚀 Predict"):
-                input_df = pd.DataFrame([new_data])
-                prediction = model.predict(input_df)[0]
-                st.markdown("### 🎯 Predicted Result:")
-                if prediction.lower() in ["dropout", "1", "yes"]:
-                    st.error(f"⚠️ {prediction}")
+            if st.button("Predict"):
+                df_input = pd.DataFrame([input_data])
+                df_input = df_input[feature_cols]
+                prediction = model.predict(df_input)[0]
+
+                st.subheader("Prediction Result")
+                if str(prediction) == "1":
+                    st.error(f"⚠️ Prediction: {prediction} (Likely to Dropout)")
                 else:
-                    st.success(f"✅ {prediction}")
-
+                    st.success(f"✅ Prediction: {prediction} (Likely to Continue)")
         except Exception as e:
-            st.error(f"❌ Error loading model: {e}")
+            st.error(f"❌ Error loading model or making prediction: {e}")
 
-# ============ 📉 ACCURACY HISTORY ============
-elif option == "📊 View Accuracy History":
+# ----------------- 3. View Accuracy History -----------------
+elif menu == "View Accuracy History":
     if st.session_state.history:
         st.subheader("📈 Model Accuracy Over Time")
         hist_df = pd.DataFrame(st.session_state.history)
         st.line_chart(hist_df.set_index("date"))
         st.dataframe(hist_df)
     else:
-        st.info("No training history available yet.")
+        st.info("ℹ️ No model training history found.")
