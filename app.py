@@ -15,7 +15,7 @@ st.set_page_config(page_title="Student Dropout Predictor", layout="wide")
 if "history" not in st.session_state:
     st.session_state.history = []
 
-st.title("🎓 Student Dropout Prediction (No File Uploads)")
+st.title("🎓 Student Dropout/passout Prediction ")
 
 # Sidebar menu
 menu = st.sidebar.radio("Select Task", [
