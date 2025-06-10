@@ -117,4 +117,4 @@ elif menu == "View Accuracy History":
         st.line_chart(hist_df.set_index("date"))
         st.dataframe(hist_df)
     else:
-        st.info("ℹ️ No model training history found.")   u use the datst column for prediction and use in codeee
+        st.info("ℹ️ No model training history found.")   
