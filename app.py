@@ -38,8 +38,10 @@ if menu == "Train Model":
             X = df.drop("Target", axis=1)
             y = df["Target"]
 
-            # Convert categorical columns
-            cat_features = X.select_dtypes(include=['object', 'category']).columns.tolist()
+            # Identify categorical features
+            cat_features = X.select_dtypes(include=['object']).columns.tolist()
+
+            # Ensure consistent dtype for categorical features
             for col in cat_features:
                 X[col] = X[col].astype(str)
 
@@ -64,7 +66,7 @@ if menu == "Train Model":
 
             st.success(f"🎯 Model Accuracy: {acc:.2%}")
 
-            # Save model and features
+            # Save model and feature info in session
             st.session_state["model"] = model
             st.session_state["features"] = X.columns.tolist()
             st.session_state["cat_features"] = cat_features
@@ -96,19 +98,25 @@ elif menu == "Predict Dropout":
     if "model" not in st.session_state:
         st.warning("⚠️ Please train the model first.")
     else:
-        st.subheader("Enter Student Information")
+        st.subheader("📝 Enter Student Information")
+
         input_data = {}
         for col in st.session_state["features"]:
             if col in st.session_state["cat_features"]:
-                input_data[col] = st.text_input(col)
+                input_data[col] = st.text_input(col, placeholder="Enter category value")
             else:
                 input_data[col] = st.number_input(col, step=1.0)
 
         if st.button("Predict"):
             df_input = pd.DataFrame([input_data])
+
+            # Ensure category dtype for CatBoost
+            for cat_col in st.session_state["cat_features"]:
+                df_input[cat_col] = df_input[cat_col].astype(str)
+
             prediction = st.session_state["model"].predict(df_input)[0]
 
-            st.subheader("Prediction Result")
+            st.subheader("🔮 Prediction Result")
             if str(prediction) == "1":
                 st.error(f"⚠️ Prediction: {prediction} (Likely to Dropout)")
             else:
