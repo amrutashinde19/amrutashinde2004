@@ -8,21 +8,23 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from datetime import datetime
 
+# Streamlit page setup
 st.set_page_config(page_title="Student Dropout Predictor", layout="wide")
 
-# Store accuracy history
+# Accuracy history tracker
 if "history" not in st.session_state:
     st.session_state.history = []
 
 st.title("🎓 Student Dropout Prediction (No File Uploads)")
 
+# Sidebar menu
 menu = st.sidebar.radio("Select Task", [
     "Train Model",
     "Predict Dropout",
     "View Accuracy History"
 ])
 
-# Synthetic Dataset Generation
+# Generate synthetic student data
 def generate_data():
     X, y = make_classification(n_samples=300, n_features=6, n_informative=4,
                                n_redundant=0, n_classes=2, random_state=42)
@@ -30,10 +32,10 @@ def generate_data():
     df["Target"] = y
     return df
 
-# ----------------- 1. Train Model -----------------
+# ---------- 1. Train Model ----------
 if menu == "Train Model":
     df = generate_data()
-    st.success("✅ Sample data generated!")
+    st.success("✅ Synthetic data generated!")
 
     if st.checkbox("Show Sample Data"):
         st.dataframe(df.head())
@@ -61,6 +63,8 @@ if menu == "Train Model":
     cm = confusion_matrix(y_test, y_pred)
 
     st.success(f"🎯 Model Accuracy: {acc:.2%}")
+
+    # Save model and features to session
     st.session_state["model"] = model
     st.session_state["features"] = list(X.columns)
     st.session_state.history.append({
@@ -68,21 +72,24 @@ if menu == "Train Model":
         "accuracy": acc
     })
 
-    st.subheader("Classification Report")
+    # Display classification report
+    st.subheader("📋 Classification Report")
     st.dataframe(pd.DataFrame(report).transpose())
 
-    st.subheader("Confusion Matrix")
+    # Show confusion matrix
+    st.subheader("🔍 Confusion Matrix")
     fig, ax = plt.subplots()
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
     st.pyplot(fig)
 
-    st.subheader("Feature Importance")
+    # Show feature importance
+    st.subheader("📊 Feature Importance")
     feat_imp = pd.Series(model.get_feature_importance(), index=X.columns)
     fig2, ax2 = plt.subplots()
     feat_imp.sort_values().plot(kind='barh', ax=ax2)
     st.pyplot(fig2)
 
-# ----------------- 2. Predict Dropout -----------------
+# ---------- 2. Predict Dropout ----------
 elif menu == "Predict Dropout":
     if "model" not in st.session_state:
         st.warning("⚠️ Please train the model first.")
@@ -102,7 +109,7 @@ elif menu == "Predict Dropout":
             else:
                 st.success(f"✅ Prediction: {prediction} (Likely to Continue)")
 
-# ----------------- 3. View Accuracy History -----------------
+# ---------- 3. View Accuracy History ----------
 elif menu == "View Accuracy History":
     if st.session_state.history:
         st.subheader("📈 Model Accuracy Over Time")
